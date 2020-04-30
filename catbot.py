@@ -25,7 +25,7 @@ except IOError as e:
 
 # Checking if at least 1 photo is present
 if(len(media_list) == 0):
-	sys.exit("Error: No pictures found in your directory") # Send 'empty dir' message and abort
+	print("Error: No pictures found in your directory") # Send 'empty dir' message and continue work
 
 # Creating 'bot' object
 API_TOKEN = "1193477236:AAHAjKpC6Oc76GReNnXvDmQAoJqqsgJIvno"
@@ -54,17 +54,27 @@ def send_help(message):
 #/get_cat command
 @bot.message_handler(commands=['get_cat'])
 def send_cat(message):
-	#Checking whether list is not empty
-	assert (len(media_list) >= 1), "Media list should contain at least 1 photo"
-	#Opening photo
-	try:
-		#Choosing random photo out of list
-		photo = open(media_dir + media_list[random.randint(0, len(media_list) - 1)], 'rb')
-		#Send photo. No text, pure cat
-		bot.send_photo(message.chat.id, photo)
-		photo.close()
-	except IOError as e:
-		print(str(e) + "\nError: failed to open file") # Send error message and continue work
+	while (len(media_list) >= 1): # We go throw the list of images, looking for one we could open
+		
+		assert (len(media_list) >= 1), "Media list should contain at least 1 photo" # a bit of paranoia
+		media_number = random.randint(0, len(media_list) - 1) # Choosing random photo out of list
+		
+		try:
+			photo = open(media_dir + media_list[media_number], 'rb') # Attempt to open file
+			
+			#Send photo. No text, pure cat
+			bot.send_photo(message.chat.id, photo)
+		
+			photo.close() # Closing file
+			break # Ooooooou we finally quit loop
+		
+		except IOError as e:
+			print(str(e) + "\nError: failed to open file") # Send error message and continue work
+			media_list.pop(media_number) # Deleting bad image from the list
+	else:
+		print("Error: There are no more pictures in the directory") # Send 'empty dir' message and continue work
+		#Out_of_cat Message
+		bot.send_message(message.chat.id, "Sorry, we went out of cats. Try again later")
 
 #photo sent
 @bot.message_handler(content_types=['photo'])
@@ -82,5 +92,5 @@ def other(message):
 #Starting tracking Telegram servers
 bot.polling()
 
-#C:\Users\Олег\source\Python\CatBot
+#cd C:\Users\Олег\source\Python\CatBot
 #python catbot.py C:\Users\Олег\Pictures\
