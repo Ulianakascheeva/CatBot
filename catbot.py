@@ -1,7 +1,31 @@
 import telebot								#Main package
 from telebot import types		#For creating custom keyboard
 import os 										#For listing dorectory
+import sys									#For getting argument list
 import random 							#For choosing random pic
+
+# Opening directory with cat pics
+if len(sys.argv) >= 2:
+	media_dir = sys.argv[1]
+else:
+	# Default pics directory
+	MEDIA_DIR_DEFAULT = 'media\\'
+	media_dir = MEDIA_DIR_DEFAULT
+
+# Getting list of pics
+media_list = [] # Creating empty list of photos
+
+try:
+	item_list = os.listdir(media_dir)								# Reading files in directory
+	for item in item_list:
+		if item.endswith(('.jpg', '.jpeg', '.png', '.gif')):	# Checking if file is a photo
+			media_list.append(item)									# Adding photo to list
+except IOError as e:
+	sys.exit(str(e) + "\nError: Something is wrong with your directory") # Send error message and abort
+
+# Checking if at least 1 photo is present
+if(len(media_list) == 0):
+	sys.exit("Error: No pictures found in your directory") # Send 'empty dir' message and abort
 
 # Creating 'bot' object
 API_TOKEN = "1193477236:AAHAjKpC6Oc76GReNnXvDmQAoJqqsgJIvno"
@@ -16,6 +40,7 @@ def send_welcome(message):
 	markup = types.ReplyKeyboardMarkup()
 	button_get_cat = types.KeyboardButton('/get_cat') # GetCat Button
 	markup.row(button_get_cat)
+	markup.resize_keyboard = True
 
 	#Welcoming Message
 	bot.send_message(message.chat.id, "Congretulations! How are you doing, cat lover?)\nPress /get_cat and fly to heaven", reply_markup = markup)
@@ -29,12 +54,17 @@ def send_help(message):
 #/get_cat command
 @bot.message_handler(commands=['get_cat'])
 def send_cat(message):
-	#Opening current directory "media\"
-	media_list = os.listdir('media\\')
-	#Choosing random photo out of those
-	photo = open('media\\' + media_list[random.randint(0, len(media_list) - 1)], 'rb')
-	#Send photo. No text, pure cat
-	bot.send_photo(message.chat.id, photo)
+	#Checking whether list is not empty
+	assert (len(media_list) >= 1), "Media list should contain at least 1 photo"
+	#Opening photo
+	try:
+		#Choosing random photo out of list
+		photo = open(media_dir + media_list[random.randint(0, len(media_list) - 1)], 'rb')
+		#Send photo. No text, pure cat
+		bot.send_photo(message.chat.id, photo)
+		photo.close()
+	except IOError as e:
+		print(str(e) + "\nError: failed to open file") # Send error message and continue work
 
 #photo sent
 @bot.message_handler(content_types=['photo'])
@@ -48,6 +78,9 @@ def other(message):
 	#Answering user's command doesn't fit any filter
 	bot.reply_to(message, "Sorry, didn't catch the idea, please try again.\n/help for list of commands")
 
-#Connecting to Telegram server
+#Connecting to Telegram servers
 #Starting tracking Telegram servers
 bot.polling()
+
+#C:\Users\Олег\source\Python\CatBot
+#python catbot.py C:\Users\Олег\Pictures\
