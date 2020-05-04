@@ -5,6 +5,7 @@ import sys                                      # For getting argument list
 import random                             # For choosing random pic
 import requests                            # For downloading pictures
 
+
 # Creating list of directories to take pics from
 media_dir_list = sys.argv[1:]
 
@@ -66,17 +67,43 @@ if(len(media_list) == 0):
 API_TOKEN = "1193477236:AAHAjKpC6Oc76GReNnXvDmQAoJqqsgJIvno"
 bot = telebot.TeleBot(API_TOKEN)
 
+
+# Keyboard creation functions
+
+def simple_keyboard():
+    # Keyboard Creation
+    markup = types.ReplyKeyboardMarkup()
+
+    # Buttons
+    button_cat = types.KeyboardButton('Получить')  # GetCat Button
+    markup.row(button_cat)
+    markup.resize_keyboard = True
+
+    return markup
+
+
+def advanced_keyboard():
+    # Keyboard Creation
+    markup = types.ReplyKeyboardMarkup()
+
+    # Buttons
+    button_cat = types.KeyboardButton('/cat')
+    markup.row(button_cat)  # GetCat Button
+    button_cats5 = types.KeyboardButton('/cats5')
+    button_cats10 = types.KeyboardButton('/cats10')
+    button_cats1000 = types.KeyboardButton('/cats1000')
+    markup.row(button_cats5, button_cats10, button_cats1000)  # GetCats Buttons
+
+    markup.resize_keyboard = True
+
+    return markup
+
+
 # Here the list of handlers goes
 
 # /start command
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    # Inside Keyboard Creation
-    markup = types.ReplyKeyboardMarkup()
-    button_get_cat = types.KeyboardButton('Получить')  # GetCat Button
-    markup.row(button_get_cat)
-    markup.resize_keyboard = True
-
     # Welcoming Message
     bot.send_message(message.chat.id,
                      "Welcome to the party\n"
@@ -84,7 +111,7 @@ def send_welcome(message):
                      "Мы рады, что ты с нами. Всё просто: жми Получить,"
                      "и мы пришлём тебе кота.\n"
                      "/help, чтобы увидеть полный список команд",
-                     reply_markup=markup)
+                     reply_markup=simple_keyboard())
 
 
 # /help command
@@ -95,17 +122,28 @@ def send_help(message):
                      "Список команд CatBot'а:\n"
                      "/start Начать диалог\n"
                      "/help Помощь\n"
-                     "/cat Прислать кота (Можно также"
+                     "/cat Прислать кота (Можно также "
                      "нажать кнопку Прислать)\n\n"
-                     "Вы также можете прислать свою фотографию, и"
-                     "CatBot сохранит её и будет выдавать при запросе."
-                     "Для этого просто пришлите фото в чат.")
+                     "Вы также можете прислать свою фотографию, и "
+                     "CatBot сохранит её и будет выдавать при запросе. "
+                     "Для этого просто пришлите фото в чат.\n\n"
+                     "CatBot также поддерживает функцию /cats, позволяющую "
+                     "получить 10 котов сразу. Функция также работает в "
+                     "пользовательском режиме:\n"
+                     "/cats - прислать 10 котов\n"
+                     "/cats5 - прислать 5 котов\n"
+                     "/cats10000 - прислать 10 тысяч котов (к сожалению, "
+                     "наши ресурсы ограничены - велика вероятность, что "
+                     "некоторые коты будут присланы дважды.\n\n"
+                     "Функция для CatGeek'ов:\n"
+                     "/enable_cats_keyboard - включить cats клавиатуру\n"
+                     "/disable_cats_keyboard - отключить cats "
+                     "клавиатуру\n\n"
+                     "Желаем приятного времяпровождения!")
 
 
-# /cat command
-@bot.message_handler(commands=['cat'])
-@bot.message_handler(regexp='Получить')
-def send_cat(message):
+# send_one cat (the main function in that file)
+def send_random_cat(chat_id):
     # We go throw the list of images, looking for one we could open
     while (len(media_list) >= 1):
 
@@ -113,14 +151,14 @@ def send_cat(message):
         assert (len(media_list) >= 1)
 
         # Choosing random photo out of list
-        media_number = random.randint(0, len(media_list) - 1)
+        media_number = random.randrange(0, len(media_list))
 
         try:
             # Attempt to open file
             photo = open(media_list[media_number], 'rb')
 
             # Send photo. No text, pure cat
-            bot.send_photo(message.chat.id, photo)
+            bot.send_photo(chat_id, photo)
 
             photo.close()  # Closing file
             break  # Ooooooou we finally quit loop, as sent photo
@@ -135,9 +173,53 @@ def send_cat(message):
         # Send 'empty dir' message and continue work
         print("Error: There are no more pictures in the directory")
         # Out_of_cat Message
-        bot.send_message(message.chat.id,
+        bot.send_message(chat_id,
                          "Извините, коты закончились.\n"
                          "Sorry, we went out of cats")
+
+
+# /cat command
+@bot.message_handler(commands=['cat'])
+@bot.message_handler(regexp='Получить')
+def send_cat(message):
+    send_random_cat(message.chat.id)
+
+
+def check_if_startswith_cats(message):
+    if(message.text is not None):
+        return message.text.startswith('/cats')
+    else:
+        return False
+
+
+# /catsN command, where N is number (e.g. /cats15)
+@bot.message_handler(func=check_if_startswith_cats)
+def send_cats(message):
+    assert(len(message.text) >= len('/cats'))  # a bit of paranoia
+    AMOUNT_DEFAULT = 10  # Default value for N
+
+    rest = message.text[len('/cats'):]  # Getting string representing N
+    if(len(rest) > 0):
+        # Attempt to convert to int
+        try:
+            amount = int(rest)
+            if(amount < 0):
+                amount = AMOUNT_DEFAULT
+        # In case convertion failed
+        except ValueError as e:
+            print(str(e) + "\nUser tried to use /cats{1} func".format(rest))
+            # Failed_to_convert message
+            bot.send_message(message.chat.id,
+                             "К сожалению, мы не поняли команду /cats{1}."
+                             "Used default command /cats10")
+            amount = AMOUNT_DEFAULT
+    else:
+        amount = AMOUNT_DEFAULT
+
+    # Now we have to send 'amount' cats
+    assert(amount >= 0)
+    for i in range(amount):
+        send_random_cat(message.chat.id)
 
 
 # photo message
@@ -195,6 +277,20 @@ def handle_pic(message):
                   "wrong during downloading file")
 
 
+# /enable_cats_keyboard command
+@bot.message_handler(commands=['enable_cats_keyboard'])
+def enable_cats_keyboard(message):
+    bot.send_message(message.chat.id, "Enjoy!",
+                     reply_markup=advanced_keyboard())
+
+
+# /disable_cats_keyboard command
+@bot.message_handler(commands=['disable_cats_keyboard'])
+def disable_cats_keyboard(message):
+    bot.send_message(message.chat.id, "Here you are!",
+                     reply_markup=simple_keyboard())
+
+
 # other messages
 @bot.message_handler(func=lambda message: True)
 def other(message):
@@ -207,4 +303,4 @@ def other(message):
 
 # Connecting to Telegram servers
 # Starting tracking Telegram servers
-bot.polling()
+bot.polling(interval=10, timeout=40)
